@@ -1,0 +1,9 @@
+#!/bin/bash
+
+echo "Please enter search term(s):"
+read -r SEARCH
+
+SEARCH=$(echo "$SEARCH" | sed -e "s/ /+/g")
+
+RESULT=$(curl -s "https://nyaa.si/?f=0&c=0_0&q=$SEARCH" | grep -o -P '(?<=dn=).*(?=tr=http%3A%2F%2Fnyaa.tracker.wf)' | sed "s:%20: :g" | sed "s:%2B:+:g" | sed "s:%5B:[:g" | sed "s:%5D:]:g" | sed "s:%27:':g" | sed "s:%28:(:g" | sed "s:%29:):g" | sed 's:&amp;::g')
+printf "\n$RESULT\n\n"
