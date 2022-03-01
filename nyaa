@@ -1,9 +1,32 @@
-#!/bin/bash
+#!/bin/sh
 
-echo "Please enter search term(s):"
-read -r SEARCH
+USERAGENT="Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/40.0.2214.85 Safari/537.36"
 
-SEARCH=$(echo "$SEARCH" | sed -e "s/ /+/g")
+download () {
+	read -p "Please enter your query: " SEARCH
+	QUERY=$(echo "$SEARCH" | sed -e "s/ /+/g")
+	curl -A "$USERAGENT" -so .search.html "https://nyaa.si/?f=0&c=0_0&q=$QUERY"
+	SELECTION="$(grep -Po '(?<= title=").*(?=</a>)' .search.html | sed 's/">.*//g' | sed "s/&#39;/'/g" | sed "1,5d" | sort | fzf -e | sed "s/'/&#39;/g")"
+	if [ "$SELECTION" = "" ]; then
+		echo "Nothing selected! Exiting..."
+		exit
+	fi
+	MAGNET="$(curl -A "$USERAGENT" -s "https://nyaa.si/$(grep -F "$SELECTION" .search.html | grep -Po "view/[0-9]{7}")" | grep magnet | sed -r 's/.*(magnet:[^"]*).*/\1/g')"
+	rm .search.html
+	transmission-cli "$MAGNET"
+}
 
-RESULT=$(curl -s "https://nyaa.si/?f=0&c=0_0&q=$SEARCH" | grep -o -P '(?<=dn=).*(?=tr=http%3A%2F%2Fnyaa.tracker.wf)' | sed "s:%20: :g" | sed "s:%2B:+:g" | sed "s:%5B:[:g" | sed "s:%5D:]:g" | sed "s:%27:':g" | sed "s:%28:(:g" | sed "s:%29:):g" | sed 's:&amp;::g')
-printf "\n$RESULT\n\n"
+nyaa_help () {
+	printf 'Nyaa.si CLI Downloader (nyaa) by swindlesmccoop\n\nUsage: nyaa [-d]\n-d, --download: Start (d)ownload function to enter query\n-h, --help: Print this (h)elp message\n'
+	exit 1
+}
+
+#if no parameters are supplied, print help
+if [ $# -eq 0 ]; then nyaa_help; fi
+
+case $1 in
+	-d) download ;;
+	--download) download ;;
+	-h) nyaa_help ;;
+	--help) nyaa_help ;;
+esac
